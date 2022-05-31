@@ -11,14 +11,14 @@ public class Server implements Runnable {
         DataOutputStream output;
         String nickname = "";
         boolean isActive = false;
+        boolean isCleared = false;
     
-        public ConnectionHandler(Socket socket) {
+        public ConnectionHandler(Socket socket, String nick) {
             try {
                 isActive = true;
+                nickname = nick;
                 this.socket = socket;
-                //System.out.println("Fetching client input stream...");
                 this.input = new DataInputStream(socket.getInputStream());
-                //System.out.println("Fetching client output stream...");
                 this.output = new DataOutputStream(socket.getOutputStream());
             } catch (IOException ex) {
                 System.err.println("Failed to create ConnectionHandler:\n" + ex);
@@ -27,22 +27,15 @@ public class Server implements Runnable {
 
         private void greetClient() {
             System.out.println("Greeting client...");
-            String clientMessage = "";
             try {
-                output.writeUTF("Hello! Please enter a nickname: ");
-                boolean isCleared = false;
-                while (isCleared == false) {
-                    clientMessage = input.readUTF();
-                    nickname = clientMessage.split("\s")[0];
-                    output.writeUTF("Nickname: [" + nickname + "] Is this correct? (y/n)");
-                    clientMessage = input.readUTF();
-                    if (clientMessage.equals("y")) {
-                        output.writeUTF("OK - nickname " + nickname + " accepted!");
-                        isCleared = true;
-                        System.out.println("Client " + nickname + " connected.");
-                    } else {
-                        output.writeUTF("Please enter a nickname: ");
-                    }
+                String clientMessage = input.readUTF();
+                if (clientMessage.equals("Hello, server!")) {
+                    String connectMessage = (nickname + " connected to server.");
+                    output.writeUTF(connectMessage);
+                    System.out.println(connectMessage);
+                } else {
+                    System.out.println("Rejected rude client.");
+                    disconnect();
                 }
             } catch (Exception ex) {
                 disconnect();
@@ -98,6 +91,7 @@ public class Server implements Runnable {
     ServerSocket serverSocket = null;
     BufferedReader br = null;
     boolean isOnline = true;
+    int clientNum = 0;
 
     public Server(int port) {
         try {
@@ -116,12 +110,10 @@ public class Server implements Runnable {
                 while (isOnline) {
                     try {
                         Thread.sleep(10000);
-                        System.out.println("Reaping...");
 
                         Iterator<ConnectionHandler> i = activeConnections.iterator();
                         while (i.hasNext()) {
                             ConnectionHandler connection = i.next();
-                            System.out.println("reaper: checking client " + connection.nickname);
                             try {
                                 connection.output.writeUTF("PING");
                                 connection.output.flush();
@@ -137,7 +129,6 @@ public class Server implements Runnable {
                     } catch (Exception ex) {
                         System.err.println("reaper: " + ex);
                     }
-                    System.out.println("Reaping complete.");
                 }
             }
         });
@@ -145,7 +136,7 @@ public class Server implements Runnable {
         Thread console = new Thread(new Runnable() {
             public void run() {
                 String serverCommand = "";
-                while (serverSocket.isBound()) {
+                while (isOnline) {
                     try {
                         serverCommand = br.readLine();
                         if (serverCommand.equals("ONLINE")) {
@@ -178,12 +169,11 @@ public class Server implements Runnable {
             try {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("New client request received: " + clientSocket);
-                System.out.println("Creating new handler for client: " + clientSocket);
-                ConnectionHandler handler = new ConnectionHandler(clientSocket);
-                System.out.println("Adding handler to active connections...");
-                activeConnections.add(handler);
+                ConnectionHandler handler = new ConnectionHandler(clientSocket, "guest" + clientNum);
+                clientNum++;
                 Thread thread = new Thread(handler);
                 thread.start();
+                activeConnections.add(handler);
             } catch (IOException ex) {
                 System.err.println(ex);
             }
