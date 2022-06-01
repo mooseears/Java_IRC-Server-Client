@@ -52,14 +52,16 @@ public class Client implements Runnable {
 
         Thread sendMessage = new Thread(new Runnable() {
             public void run() {
-                while (isActive && socket.isConnected()) {
+                while (isActive) {
                     try {
                         String message = br.readLine();
                         output.writeUTF(message);
                         output.flush();
                     } catch (Exception ex) {
-                        System.err.println("Connection to server has been lost.");
-                        disconnect();
+                        if (isActive) {
+                            System.err.println("Connection to server has been lost.");
+                            disconnect();
+                        }
                     }
                 }
             }
@@ -67,15 +69,20 @@ public class Client implements Runnable {
 
         Thread receiveMessage = new Thread(new Runnable() {
             public void run() {
-                while (isActive && socket.isConnected()) {
+                String message = "";
+                while (isActive) {
                     try {
-                        String message = input.readUTF();
-                        if (!message.equals("PING")) {
+                        while ((message = input.readUTF()) != null) {
+                            //String message = input.readUTF();
+                            if (!message.equals("PING")) {
                             System.out.println(message);
+                            }
                         }
                     } catch (Exception ex) {
-                        System.err.println("Connection to server has been lost.");
-                        disconnect();
+                        if (isActive) {
+                            System.err.println("Connection to server has been lost.");
+                            disconnect();
+                        }
                     }
                 }
             }
