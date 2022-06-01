@@ -73,9 +73,8 @@ public class Client implements Runnable {
                 while (isActive) {
                     try {
                         while ((message = input.readUTF()) != null) {
-                            //String message = input.readUTF();
                             if (!message.equals("PING")) {
-                            System.out.println(message);
+                                System.out.println(message);
                             }
                         }
                     } catch (Exception ex) {
